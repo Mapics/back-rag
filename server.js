@@ -21,14 +21,23 @@ app.get('/jeux', async (req, res) => {
     let conn;
     try {
         conn = await pool.getConnection();
-        const rows = await conn.query('SELECT * FROM jeu');
+
+        let query = 'SELECT * FROM jeu';
+
+        if (req.query.search) {
+            query += ` WHERE titre LIKE '%${req.query.search}%'`;
+        }
+
+        const rows = await conn.query(query);
         res.status(200).json(rows);
     } catch(err) {
-        res.status(404).console.log(err);
+        console.log(err);
+        res.status(500).json({ error: 'Erreur serveur' });
     } finally {
         if (conn) conn.release();
     }
 });
+
 
 app.get('/jeux/:id', async (req, res) => {
     let conn;
