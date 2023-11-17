@@ -157,6 +157,44 @@ app.post('/location', async (req, res) => {
     }
 })
 
+app.get('/user/:userId/gamesInLocation', async (req, res) => {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const userId = req.params.userId;
+        const rows = await conn.query('SELECT * FROM location WHERE id_user = ?', [userId]);
+        res.status(200).json(rows);
+    } catch (err) {
+        console.error("Erreur lors de la récupération des jeux en location :", err);
+        res.status(500).json({ error: "Erreur lors de la récupération des jeux en location.", details: err.message });
+    } finally {
+        if (conn) conn.release(); // Toujours libérer la connexion après usage
+    }
+});
+
+app.get('/user/:userId/gamesWithComments', async (req, res) => {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const userId = req.params.userId;
+
+        // Sélectionne les jeux de l'utilisateur avec leurs commentaires
+        const rows = await conn.query(`
+            SELECT jeu.*, location.commentaire AS userComment
+            FROM jeu
+            LEFT JOIN location ON jeu.id = location.jeu_id
+            WHERE location.user_id = ?
+        `, [userId]);
+
+        res.status(200).json(rows);
+    } catch (err) {
+        console.error("Erreur lors de la récupération des jeux avec commentaires :", err);
+        res.status(500).json({ error: "Erreur lors de la récupération des jeux avec commentaires.", details: err.message });
+    } finally {
+        if (conn) conn.release(); // Toujours libérer la connexion après usage
+    }
+});
+
 app.get('/location/comment/:gamesid', async (req, res) => {
     let conn;
     try {
