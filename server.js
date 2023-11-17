@@ -98,10 +98,6 @@ app.post("/login", async(req, res) => {
             return;
         }
 
-        if (email === user[0].email) {
-            res.status(401).json({ error : "Email deja utilisé"})
-        }
-
         const hashedPassword = user[0].password;
         console.log(password, hashedPassword)
         await bcrypt.compare(password, hashedPassword, function(err, response){
