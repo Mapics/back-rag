@@ -1,6 +1,7 @@
 const express = require('express')
 const mariadb = require('mariadb')
 const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken');
 
 require('dotenv').config();
 
@@ -17,6 +18,31 @@ const pool = mariadb.createPool({
     password: process.env.DB_PWD,
 })
 
+const verifyToken = (req, res, next) => {
+    const token = req.cookies.token;
+
+    if (!token) {
+    return res.status(401).json({ message: 'Non authentifié' });
+    }
+
+    jwt.verify(token, 'clé_secrète', (err, user) => {
+    if (err) {
+        return res.status(403).json({ message: 'Token invalide' });
+    }
+
+    req.user = user;
+    next();
+    });
+};
+
+
+app.get('/profil', verifyToken, (req, res) => {
+    res.json({ user: req.user });
+});
+
+app.get('/')
+
+  
 app.get('/jeux', async (req, res) => {
     let conn;
     try {
@@ -72,14 +98,20 @@ app.post("/login", async(req, res) => {
             return;
         }
 
+        if (email === user[0].email) {
+            res.status(401).json({ error : "Email deja utilisé"})
+        }
+
         const hashedPassword = user[0].password;
         console.log(password, hashedPassword)
-        const passwordMatch = await bcrypt.compare(password, hashedPassword) ;
-        bcrypt.compare(password, hashedPassword, function(err, response){
+        await bcrypt.compare(password, hashedPassword, function(err, response){
+
             if (response) {
                 console.log("Mot de passe correct");
-                localStorage.setItem('isConnected', 'true');
-                localStorage.setItem('user', user[0].user_id);
+                const user = { id: 123, username: 'utilisateur' }
+                const token = jwt.sign(user, 'key', { expiresIn: '1h' });
+                res.json({ token });
+                console.log(token)
             } else {
                 console.log("Mot de passe incorrect" + err);
             }
@@ -87,7 +119,6 @@ app.post("/login", async(req, res) => {
     } catch (err) {
         res.status(500).json({ error: "Erreur lors de la connexion." });
     } finally {
-        console.log('echoué')
         if (conn) conn.release(); // Toujours libérer la connexion après usage
     }
 });
@@ -96,14 +127,14 @@ app.post("/signup", async(req, res) => {
     let conn;
     try {
         conn = await pool.getConnection();
-        const { email, password, username, userfirstname } = req.body;
+        const { username, email, password } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
         const result = await conn.query(
-            'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-            [username, email, password]
+            'INSERT INTO user (username, email, password) VALUES (?, ?, ?)',
+            [username, email, hashedPassword]
         );
         const insertedId = result.insertId;
-        const newUser = await conn.query('SELECT * FROM users WHERE id = ?', [insertedId]);
+        const newUser = await conn.query('SELECT * FROM user WHERE id = ?', [insertedId]);
         console.log("new user signup")
         res.status(201).json(newUser[0]);
     } catch (err) {
