@@ -38,35 +38,34 @@ app.get('/profil', verifyToken, (req, res) => {
     res.json({ user: req.user });
 });
 
-app.post("/login", async(req, res) => {
+app.post('/location', async (req, res) => {
     let conn;
-    console.log('tentative de connexion')
     try {
         conn = await pool.getConnection();
-        const { email, password } = req.body;
-        const user = await conn.query('SELECT * FROM user WHERE email = ?', [email]);
+        const locationsToAdd = req.body; // Reçoit un tableau d'objets
 
-        if (user.length === 0) {
-            res.status(404).json({ error: "Utilisateur non trouvé." });
-            return;
-        }
+        // Utilise Promise.all pour effectuer les insertions en parallèle
+        await Promise.all(locationsToAdd.map(async (locationData) => {
+            const { id, dateStart, dateEnd } = locationData;
 
-        const hashedPassword = user[0].password;
-        console.log(password, hashedPassword)
-        await bcrypt.compare(password, hashedPassword, function(err, response){
+            // Extraire l'ID de l'utilisateur du token JWT
+            const token = req.cookies.token;
+            const decodedToken = jwt.verify(token, 'valeur_du_token');
+            const userId = decodedToken.id;
 
-            if (response) {
-                console.log("Mot de passe correct");
-                const user = { id: 123, username: 'utilisateur' }
-                const token = jwt.sign(user, 'valeur_du_token', { expiresIn: '1h' });
-                res.json({ token });
-                console.log(token)
-            } else {
-                console.log("Mot de passe incorrect" + err);
-            }
-        })
+            // Ajoutez la location avec les informations nécessaires
+            const result = await conn.query(
+                'INSERT INTO location (id_jeu, id_user, date_debut, date_fin) VALUES (?, ?, ?, ?)',
+                [id, userId, dateStart, dateEnd]
+            );
+
+            const insertedId = result.insertId;
+        }));
+
+        res.status(201).json({ message: "Locations ajoutées avec succès." });
     } catch (err) {
-        res.status(500).json({ error: "Erreur lors de la connexion." });
+        console.error("Erreur lors de la création des locations :", err);
+        res.status(500).json({ error: "Erreur lors de la création des locations.", details: err.message });
     } finally {
         if (conn) conn.release(); // Toujours libérer la connexion après usage
     }
@@ -165,22 +164,31 @@ app.post('/location', async (req, res) => {
     let conn;
     try {
         conn = await pool.getConnection();
-        const { user_id, jeu_id, d_location_date, location_date } = req.body;
-        const result = await conn.query(
-            'INSERT INTO location (user_id, jeu_id, d_location_date, location_date) VALUES (?, ?, ?, ?)',
-            [user_id, jeu_id, d_location_date, location_date]
-        );
-        const insertedId = result.insertId;
-        const newLocation = await conn.query('SELECT * FROM location WHERE id = ?', [insertedId]);
-        res.status(201).json(newLocation[0]);
+        const locationsToAdd = req.body; // Reçoit un tableau d'objets
+
+        // Utilise Promise.all pour effectuer les insertions en parallèle
+        await Promise.all(locationsToAdd.map(async (locationData) => {
+            const { id, titre, dateStart, dateEnd } = locationData;
+            const userId = req.user.id;
+            
+            // Ajoutez la location avec les informations nécessaires
+            const result = await conn.query(
+                'INSERT INTO location (id_jeu, id_user, date_debut, date_fin) VALUES (?, ?, ?, ?)',
+                [id, userId, dateStart, dateEnd]
+            );
+
+            const insertedId = result.insertId;
+        }));
+
+        res.status(201).json({ message: "Locations ajoutées avec succès." });
     } catch (err) {
-        console.error("Erreur lors de la création de la location :", err);
-        res.status(500).json({ error: "Erreur lors de la création de la location.", details: err.message });
+        console.error("Erreur lors de la création des locations :", err);
+        res.status(500).json({ error: "Erreur lors de la création des locations.", details: err.message });
     } finally {
         if (conn) conn.release(); // Toujours libérer la connexion après usage
     }
+});
 
-})
 
 app.get('/user/:userId/gamesInLocation', async (req, res) => {
     let conn;
