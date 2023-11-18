@@ -1,9 +1,6 @@
 const express = require('express')
 const mariadb = require('mariadb')
 const bcrypt = require('bcrypt')
-const jwt = require('jsonwebtoken');
-const cookieParser = require('cookie-parser');
-const localStorage = require('localStorage');
 require('dotenv').config();
 
 const app = express()
@@ -11,7 +8,6 @@ var cors = require('cors')
 
 app.use(express.json())
 app.use(cors())
-app.use(cookieParser());
 
 const pool = mariadb.createPool({
     host: process.env.DB_HOST,
@@ -97,7 +93,6 @@ app.post("/login", async (req, res) => {
         if (passwordMatch) {
             console.log("Mot de passe correct");
             const userId = user[0].id;
-            localStorage.setItem("userId", userId);
             res.json({ userId });
         } else {
             console.log("Mot de passe incorrect");
@@ -192,6 +187,7 @@ app.get('/user/:id/username', async (req, res) => {
     try {
         conn = await pool.getConnection();
         const rows = await conn.query('SELECT username FROM user WHERE id = ?', [req.params.id]);
+        console.log(rows);
         res.status(200).json(rows);
     } catch(err) {
         res.status(404).json(err);
