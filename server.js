@@ -17,19 +17,17 @@ const pool = mariadb.createPool({
 })
 
 // Modification de la route côté serveur
-app.post('/location', async (req, res) => {
-    const userId = req.params.userId; // Récupérer l'ID de l'utilisateur depuis les paramètres de l'URL
+app.post('/location/:userId', async (req, res) => {
+    const userId = req.params.userId;
 
     let conn;
     try {
         conn = await pool.getConnection();
-        const locationsToAdd = req.body; // Reçoit un tableau d'objets
+        const locationsToAdd = req.body;
 
-        // Utilise Promise.all pour effectuer les insertions en parallèle
         await Promise.all(locationsToAdd.map(async (locationData) => {
             const { id, dateStart, dateEnd } = locationData;
 
-            // Ajoutez la location avec les informations nécessaires
             const result = await conn.query(
                 'INSERT INTO location (id_jeu, id_user, date_debut, date_fin) VALUES (?, ?, ?, ?)',
                 [id, userId, dateStart, dateEnd]
@@ -41,7 +39,7 @@ app.post('/location', async (req, res) => {
         console.error("Erreur lors de la création des locations :", err);
         res.status(500).json({ error: "Erreur lors de la création des locations.", details: err.message });
     } finally {
-        if (conn) conn.release(); // Toujours libérer la connexion après usage
+        if (conn) conn.release();
     }
 });
 
