@@ -115,7 +115,6 @@ app.get('/jeux', async (req, res) => {
     }
 });
 
-
 app.get('/jeux/:id', async (req, res) => {
     let conn;
     try {
@@ -123,7 +122,20 @@ app.get('/jeux/:id', async (req, res) => {
         const rows = await conn.query('SELECT * FROM jeu WHERE id = ?', [req.params.id]);
         res.status(200).json(rows);
     } catch(err) {
-        res.status(404).console.log(err);
+        res.status(404).json(err);
+    } finally {
+        if (conn) conn.release();
+    }
+});
+
+app.get('/users', async (req, res) => {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM user');
+        res.status(200).json(rows);
+    } catch(err) {
+        res.status(404).json(err);
     } finally {
         if (conn) conn.release();
     }
@@ -136,15 +148,27 @@ app.get('/user/:id' , async (req, res) => {
     res.json(rows);
 })
 
+app.get('/user/:id/username', async (req, res) => {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT username FROM user WHERE id = ?', [req.params.id]);
+        res.status(200).json(rows);
+    } catch(err) {
+        res.status(404).json(err);
+    } finally {
+        if (conn) conn.release();
+    }
+});
 
 app.post('/location', async (req, res) => {
     let conn;
     try {
         conn = await pool.getConnection();
-        const { user_id, jeu_id, location_date } = req.body;
+        const { user_id, jeu_id, d_location_date, location_date } = req.body;
         const result = await conn.query(
-            'INSERT INTO location (user_id, jeu_id, location_date) VALUES (?, ?, ?)',
-            [user_id, jeu_id, location_date]
+            'INSERT INTO location (user_id, jeu_id, d_location_date, location_date) VALUES (?, ?, ?, ?)',
+            [user_id, jeu_id, d_location_date, location_date]
         );
         const insertedId = result.insertId;
         const newLocation = await conn.query('SELECT * FROM location WHERE id = ?', [insertedId]);
@@ -155,6 +179,7 @@ app.post('/location', async (req, res) => {
     } finally {
         if (conn) conn.release(); // Toujours libérer la connexion après usage
     }
+
 })
 
 app.get('/user/:userId/gamesInLocation', async (req, res) => {
@@ -199,7 +224,7 @@ app.get('/location/comment/:gamesid', async (req, res) => {
     let conn;
     try {
         conn = await pool.getConnection();
-        const rows = await conn.query('SELECT * FROM comment WHERE id_jeu = ?', [req.params.gamesid]);
+        const rows = await conn.query('SELECT * FROM location WHERE id_jeu = ?', [req.params.gamesid]);
         res.status(200).json(rows);
     } catch(err) {
         res.status(404).console.log(err);
@@ -207,7 +232,6 @@ app.get('/location/comment/:gamesid', async (req, res) => {
         if (conn) conn.release();
     }
 })
-// app.get('/location/comment/:userid', async (req, res) => {
 
 app.listen(8000, () => {
     console.log("Serveur a l'ecoute");
